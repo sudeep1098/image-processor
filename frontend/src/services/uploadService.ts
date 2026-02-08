@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+// Use same-origin by default (proxied via nginx); override with VITE_API_URL for local dev
+const API_URL = import.meta.env.VITE_API_URL ?? '';
 
 interface PresignedUrlResponse {
   presignedUrl: string;
