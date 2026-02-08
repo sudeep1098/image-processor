@@ -1,20 +1,22 @@
-import AWS from "aws-sdk";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // Initialize S3 client
 // - Uses environment variables for local development (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 // - Uses EC2 IAM role when deployed on EC2 (no env vars needed)
 const s3Config = {
   region: process.env.AWS_REGION || "ap-south-1",
-  signatureVersion: 'v4', // Required: Use AWS Signature Version 4 (AWS4-HMAC-SHA256)
 };
 
 // Only add credentials if they exist in environment (for local development)
 if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
-  s3Config.accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  s3Config.secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  s3Config.credentials = {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  };
 }
 
-const s3 = new AWS.S3(s3Config);
+const s3Client = new S3Client(s3Config);
 
 /**
  * Generate presigned URL for uploading to S3
@@ -29,14 +31,13 @@ export const generatePresignedUrl = async (
   contentType = "image/png",
 ) => {
   try {
-    const params = {
+    const command = new PutObjectCommand({
       Bucket: bucketName,
       Key: key,
-      Expires: 300, // 5 minutes
       ContentType: contentType,
-    };
+    });
 
-    const url = await s3.getSignedUrlPromise("putObject", params);
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 300 }); // 5 minutes
     return url;
   } catch (error) {
     console.error("Error generating presigned URL:", error);
@@ -52,13 +53,12 @@ export const generatePresignedUrl = async (
  */
 export const getDownloadUrl = async (bucketName, key) => {
   try {
-    const params = {
+    const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key,
-      Expires: 3600, // 1 hour
-    };
+    });
 
-    const url = await s3.getSignedUrlPromise("getObject", params);
+    const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour
     return url;
   } catch (error) {
     console.error("Error generating download URL:", error);
@@ -74,12 +74,12 @@ export const getDownloadUrl = async (bucketName, key) => {
  */
 export const deleteObject = async (bucketName, key) => {
   try {
-    const params = {
+    const command = new DeleteObjectCommand({
       Bucket: bucketName,
       Key: key,
-    };
+    });
 
-    await s3.deleteObject(params).promise();
+    await s3Client.send(command);
   } catch (error) {
     console.error("Error deleting object:", error);
     throw new Error("Failed to delete object");
@@ -94,12 +94,12 @@ export const deleteObject = async (bucketName, key) => {
  */
 export const listObjects = async (bucketName, prefix = "") => {
   try {
-    const params = {
+    const command = new ListObjectsV2Command({
       Bucket: bucketName,
       Prefix: prefix,
-    };
+    });
 
-    const data = await s3.listObjectsV2(params).promise();
+    const data = await s3Client.send(command);
     return data.Contents || [];
   } catch (error) {
     console.error("Error listing objects:", error);
