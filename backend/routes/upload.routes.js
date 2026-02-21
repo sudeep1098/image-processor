@@ -4,6 +4,8 @@ import { generatePresignedUrl, getDownloadUrl, listObjects } from '../services/s
 
 const router = express.Router();
 
+console.log("S3_BUCKET_NAME:", process.env.S3_BUCKET_NAME);
+
 /**
  * POST /api/upload/presigned-url
  * Generate presigned URL for S3 upload

@@ -1,10 +1,8 @@
+import "./load-env.js";
 import express from "express";
-import dotenv from "dotenv";
 import cors from "cors";
 import healthRoute from "./routes/health.routes.js";
 import uploadRoute from "./routes/upload.routes.js";
-
-dotenv.config();
 
 const app = express();
 
